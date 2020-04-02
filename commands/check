@@ -1,0 +1,33 @@
+#!/bin/bash
+
+set -e
+
+exec 3>&1 # use fd 3 for script output
+exec 1>&2 # send normal stdout to stderr for logging
+
+input=$(mktemp /tmp/resource-in.XXXXXX)
+cat > "${input}" <&0
+
+host=$(cat $input | jq '.[] | select(.host != null) | .host ' | tr -d '"')
+username=$(cat $input | jq '.[] | select(.username != null) | .username ' | tr -d '"')
+private_key=$(cat $input | jq '.[] | select(.private_key != null) | .private_key ' | tr -d '"')
+source_dir=$(cat $input | jq '.[] | select(.source_dir != null) | .source_dir ' | tr -d '"')
+
+(jq -r '.source.private_key // empty' < $input) > private_key.pem
+chmod 0600 private_key.pem
+
+md5checksum=$(ssh -i private_key.pem -o StrictHostKeyChecking=no $username@$host "find $source_dir -type f -exec md5sum {} + | awk '{print $1}' | sort | md5sum")
+
+version="$(cat <<EOF
+[
+    {
+        "version": "${md5checksum}"
+    }
+]
+EOF
+)"
+
+#echo '[{"version": "1.0"}]'
+
+echo "$version" | jq -s add >&3
+#echo '{"version":{"ref":"none"}}'
