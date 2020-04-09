@@ -15,20 +15,91 @@ cat > "${input}" <&0
 #echo '["version": "1.0.0"]'
 #echo '{"version":{"ref":"none"}}'
 
-
-host=$(cat $input | jq '.[] | select(.host != null) | .host ' | tr -d '"')
-username=$(cat $input | jq '.[] | select(.username != null) | .username ' | tr -d '"')
-private_key=$(cat $input | jq '.[] | select(.private_key != null) | .private_key ' | tr -d '"')
-source_dir=$(cat $input | jq '.[] | select(.source_dir != null) | .source_dir ' | tr -d '"')
-source_file=$(cat $input | jq '.[] | select(.source_file != null) | .source_file ' | tr -d '"')
-
-(jq -r '.source.private_key // empty' < $input) > private_key.pem
-chmod 0600 private_key.pem
-
+host=$(jq -r '.source.host // empty' $input)
+username=$(jq -r '.source.username // empty' $input)
+private_key=$(jq -r '.source.private_key // empty' $input)
+password=$(jq -r '.source.password // empty' $input)
+source_dir=$(jq -r '.source.source_dir // empty' $input)
+source_file=$(jq -r '.source.source_file // empty' $input)
+# override with values in params section // Begin
+if [[ -z ${host} ]]; then
+  host=$(jq -r '.params.host // empty' $input)
+fi
+if [[ -z ${username} ]]; then
+  username=$(jq -r '.params.username // empty' $input)
+fi
+if [[ -z ${source_dir} ]]; then
+  source_dir=$(jq -r '.params.source_dir // empty' $input)
+fi
 if [[ -z ${source_file} ]]; then
-  scp -i private_key.pem -r -o StrictHostKeyChecking=no $username@$host:$source_dir/* $1/
-else 
-  scp -i private_key.pem -r -o StrictHostKeyChecking=no $username@$host:$source_dir/${source_file} $1/
+  source_file=$(jq -r '.params.source_file // empty' $input)
+fi
+param_private_key=$(jq -r '.params.private_key // empty' $input)
+param_password=$(jq -r '.params.password // empty' $input)
+if [[ -z ${param_private_key} || -z ${param_password} ]]; then
+  private_key=${param_private_key}
+  password=${param_password}
+fi
+# override with values in params section // End
+
+# check for config errors //Begin
+if [[ -z ${host} ]]; then
+  error="$(cat <<EOF
+[{"error": "host must be set"}]
+EOF
+)"
+  echo "${error}" | jq -s add >&3
+  exit 1
+elif [[ -z ${username} ]]; then
+  error="$(cat <<EOF
+[{"error": "username must be set"}]
+EOF
+)"
+  echo "${error}" | jq -s add >&3
+  exit 1
+elif [[ -z ${source_dir} ]]; then
+  error="$(cat <<EOF
+[{"error": "source_dir must be set"}]
+EOF
+)"
+  echo "${error}" | jq -s add >&3
+  exit 1
+elif [[ ! -z ${private_key} ]]; then # return error if both private_key and password is set.
+  if [[ ! -z ${password} ]]; then
+    error="$(cat <<EOF
+[{"error": "Only one of private_key or password should be set"}]
+EOF
+)"
+    echo "${error}" | jq -s add >&3
+    exit 1
+  fi
+elif [[ -z ${private_key} ]]; then # return error if none of private_key and password is set.
+  if [[ -z ${password} ]]; then
+    error="$(cat <<EOF
+[{"error": "One of private_key or password should be set"}]
+EOF
+)"
+    echo "${error}" | jq -s add >&3
+    exit 1
+  fi
+fi
+# check for config errors //End
+
+if [[ ! -z ${private_key} ]]; then
+  echo "${private_key}" > private_key.pem
+  chmod 0600 private_key.pem
+  
+  if [[ -z ${source_file} ]]; then
+    scp -i private_key.pem -r -o StrictHostKeyChecking=no $username@$host:$source_dir/* $1/
+  else 
+    scp -i private_key.pem -r -o StrictHostKeyChecking=no $username@$host:$source_dir/${source_file} $1/
+  fi
+else
+  if [[ -z ${source_file} ]]; then
+    sshpass -p ${password} scp -r -o StrictHostKeyChecking=no $username@$host:$source_dir/* $1/
+  else 
+    sshpass -p ${password} scp -r -o StrictHostKeyChecking=no $username@$host:$source_dir/${source_file} $1/
+  fi
 fi
 
 metadata="$(cat <<EOF

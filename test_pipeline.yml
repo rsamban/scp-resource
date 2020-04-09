@@ -1,0 +1,61 @@
+resource_types:
+- name: myscp
+  type: docker-image
+  source:
+    repository: rsamban/scp-resource
+resources:
+- name: pcf-products
+  type: myscp
+  source:
+    host: 172.28.81.3
+    username: ubuntu
+    private_key: |
+      -----BEGIN RSA PRIVATE KEY-----
+      MIIEpQIBAAKCAQEA6rfxJenR7quMDtjKAwnhgkA8/yoTIGs33lrnJEnxxMPOdBFw
+      6M6PutumLm42jG2l57Gxq4yUckoue63Wcum98OK5Xkzx9IT/0zo0Um5XYjb8aoRN
+      HBtQDWq7FbzUdmnwSvLTR+M/iI7axVUzQJWjks2DqrytlPkzE1zrb1nv/tBAPXH6
+      s90dYX/yd/NZ6KrOWpPDMP3eUSzfgPVYjS4SyPxdbCvmvxgdPjM/zLxumpU8boK/
+      B0aYr9ZufA6ESDaZIUwD4+G9xK7aUEfFzeYAoJqbmIL4oUWU8Dg3gHpwK+SKBDLD
+      LBmtLtedMH/1CO8c9zoSA7ET8Pwu2kh4zEW0MQIDAQABAoIBAFfldhq6ivETsKlG
+      qa+lnZtHLxBm0y7Kt+s+o1xFjJIguUlh1qR35f8Vjg/JGghQb1Zqhpw1UsnR2cJb
+      APmbapOwc7ZKnjjxLVQOcdWEmJig+rlwveeOmtXLaC/lvLJzTZbjhBdhlEMxK9/F
+      3iGLZ+vrpijj6yTkhSn1G/1g8qy63A+6mzUS0IYX6evZqFnB8cbVDJk3StUqXcjn
+      OBa/0HbkFjMVxndyhIwsLJVXf/CQWs4SydOP7O36X7rPZX//bLLqdSWbQK5YOkN2
+      q3AI2YixeCyDMF+LbgqhizuCXaKp1awbuvEH/bl4rHsv4G0psJH0ZGtFVoCMm+SQ
+      7MdoKTkCgYEA+tGqsC6gcMLtYdF/KGMOriQSAB0WFxWMk32rlJBfFNdrZF1Qtxhg
+      MdZyUIqh1cZ3XgH4gOxYTMpgY3SO8isHhwFGVugVSpB1KAZEHI1lEgD64oO9yeuj
+      uU5WiVjjukgdV4hXt6hC+ng3QDNZQxt0rc/kZ319R0g2+T9bPHrMF1cCgYEA75Ei
+      vb7mXyC00hOWooSFntFGX4/0AMQdcHd66BRXlcAd/W1HXH4BitO1Pm9vw5MWDVau
+      QHV/CIMvwurNEhFzHbM2uNp/lzdjD1EeWvg751OXc9b2UxXkeamwN6rQ7MnPadTx
+      hgKGaZjUv6sjXHHDpHXUO6/Yh5tIIsvMXRbdA7cCgYEAlQ8txW6wYtM1iECctT/J
+      ZayCFhczHZzs4mp5Id165EPxyr+6TFXsNTIg1cTN0OIV5oR9TwEmqNxM1E5c9Yak
+      /pK/Xr6miJ25QoQWznEpc72pXBy3Gd00e9gWjaGKFRbueSrKFpek1n3DOCBMGBml
+      CfbW4rotTcOZCB+i9Rp1WBkCgYEA30oLc4em+Stm3hdb44ZZdLniOdfWuZARUG5M
+      pFuxduZmDXv5c4AOt/Kzj8oWBdfmSfBs4a+iA7Eipy5qjViuTxRnAMzG946sSe51
+      uJx+WRJUq6fEV5SkK7G5iWkw6kL/i8jqhNl9ppbIVQ2SG+v9SiB4/FjeHSbiiWwi
+      wvE4dukCgYEAwEOPpl2Q59jv3V6U5IFvQBS/HXI78vniWESAp4hXntlfRPBdf7fA
+      oiek+GdFSXo6KowY/n3CIkyDR/aZ73n0Jo2sWRwJ1/g+x02JBGex4h9xp0jkONsd
+      JWVefGMQMDxqbPH8v+jQrb4CESNP1iL8UyTRvNAqR5D6GiI67iwhUoM=
+      -----END RSA PRIVATE KEY-----
+    source_dir: temp
+    source_file: test.txt
+jobs:
+- name: scptest
+  plan:
+  - get: pcf-products
+    params:
+      password: welcome1
+      host: 172.28.81.3
+  - task: scptest
+    config:
+      platform: linux
+      image_resource:
+        type: registry-image
+        source:
+          repository: rsamban/scp-resource
+      inputs:
+      - name: pcf-products
+      run:
+        path: sh
+        args:
+          - ls -larR;  echo "testing"; exit 1;
